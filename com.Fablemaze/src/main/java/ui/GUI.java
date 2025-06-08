@@ -11,155 +11,584 @@ import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Scene;
 import javafx.scene.control.*;
-import javafx.scene.effect.DropShadow;
 import javafx.scene.layout.*;
-import javafx.scene.paint.Color;
-import javafx.scene.shape.Rectangle;
 import javafx.stage.Stage;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.HashMap;
 
 public class GUI extends Application {
     
     private Stage primaryStage;
-    private Scene loginScene;
-    private Scene profileScene;
+    private StackPane mainContainer;
+    
+    // Login/Signup page components
+    private VBox loginForm;
+    private VBox signupForm;
+    private Button loginToggle;
+    private Button signupToggle;
+    private boolean isLoginMode = true;
+    
+    // Pages
+    private VBox authPage;
+    private VBox homePage;
+    private VBox profileSpecPage;
     
     private AppController controller;
+    private String currentUsername;
     
     @Override
     public void start(Stage stage) {
-        DatabaseManager.initSchema();
         controller = new AppController();
+        DatabaseManager.initSchema();
         
         primaryStage = stage;
-        primaryStage.setTitle("Account Portal");
+        primaryStage.setTitle("Fablemaze");
         
-        // Create login/signup scene
-        createLoginScene();
+        // Create main container that will hold all pages
+        mainContainer = new StackPane();
+        mainContainer.setStyle(
+            "-fx-background-color: linear-gradient(#667eea 0%, #764ba2 100%);"
+        );
         
-        // Create profile creation scene
-        createProfileScene();
+        // Create all pages
+        createAuthPage();
+        createHomePage();
+        createProfileSpecPage();
         
-        // Start with login scene
-        primaryStage.setScene(loginScene);
+        // Add all pages to main container (only one will be visible at a time)
+        mainContainer.getChildren().addAll(authPage, homePage, profileSpecPage);
+        
+        // Initially show only auth page
+        showAuthPage();
+        
+        Scene scene = new Scene(mainContainer, 1050, 825);
+        primaryStage.setScene(scene);
         primaryStage.setResizable(false);
         primaryStage.show();
     }
     
-    private void createLoginScene() {
-        // Main container with gradient background
-        StackPane root = new StackPane();
-        root.setStyle("-fx-background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);");
+    private void createAuthPage() {
+        // Left side - Decorative panel
+        VBox leftPanel = createLeftPanel();
         
-        // Main content card
-        VBox mainCard = new VBox();
-        mainCard.setMaxWidth(450);
+        // Right side - Form panel
+        VBox rightPanel = createRightPanel();
+        
+        // Main card container
+        HBox mainCard = new HBox();
+        mainCard.setMaxWidth(900);
         mainCard.setMaxHeight(600);
         mainCard.setStyle(
-            "-fx-background-color: rgba(255, 255, 255, 0.95);" +
+            "-fx-background-color: white;" +
             "-fx-background-radius: 20;" +
-            "-fx-padding: 40;" +
-            "-fx-spacing: 25;"
+            "-fx-effect: dropshadow(gaussian, rgba(0,0,0,0.3), 25, 0, 0, 10);"
         );
         
-        // Add subtle shadow
-        DropShadow shadow = new DropShadow();
-        shadow.setRadius(20);
-        shadow.setOffsetY(10);
-        shadow.setColor(Color.color(0, 0, 0, 0.3));
-        mainCard.setEffect(shadow);
+        mainCard.getChildren().addAll(leftPanel, rightPanel);
         
-        // Title
-        Label titleLabel = new Label("Welcome Back");
+        authPage = new VBox();
+        authPage.setAlignment(Pos.CENTER);
+        authPage.getChildren().add(mainCard);
+    }
+    
+    private void createHomePage() {
+        homePage = new VBox(30);
+        homePage.setAlignment(Pos.CENTER);
+        homePage.setPadding(new Insets(40));
+        
+        // Header
+        HBox header = new HBox();
+        header.setAlignment(Pos.CENTER_LEFT);
+        header.setPadding(new Insets(0, 0, 20, 0));
+        
+        Label welcomeLabel = new Label("Welcome to Fablemaze");
+        welcomeLabel.setStyle(
+            "-fx-font-size: 36px;" +
+            "-fx-text-fill: white;" +
+            "-fx-font-weight: 300;"
+        );
+        
+        Region spacer = new Region();
+        HBox.setHgrow(spacer, Priority.ALWAYS);
+        
+        Button logoutButton = new Button("Logout");
+        logoutButton.setStyle(
+            "-fx-background-color: rgba(255,255,255,0.2);" +
+            "-fx-text-fill: white;" +
+            "-fx-font-size: 14px;" +
+            "-fx-font-weight: 500;" +
+            "-fx-background-radius: 20;" +
+            "-fx-padding: 10 20;" +
+            "-fx-cursor: hand;" +
+            "-fx-border-color: rgba(255,255,255,0.3);" +
+            "-fx-border-radius: 20;"
+        );
+        
+        logoutButton.setOnAction(e -> {
+            currentUsername = null;
+            showAuthPage();
+        });
+        
+        header.getChildren().addAll(welcomeLabel, spacer, logoutButton);
+        
+        // Main content card
+        VBox contentCard = new VBox(30);
+        contentCard.setMaxWidth(800);
+        contentCard.setPadding(new Insets(60));
+        contentCard.setAlignment(Pos.CENTER);
+        contentCard.setStyle(
+            "-fx-background-color: white;" +
+            "-fx-background-radius: 20;" +
+            "-fx-effect: dropshadow(gaussian, rgba(0,0,0,0.2), 20, 0, 0, 5);"
+        );
+        
+        Label titleLabel = new Label("Your Personalized Film Experience");
         titleLabel.setStyle(
-            "-fx-font-size: 32px;" +
-            "-fx-font-weight: 300;" +
+            "-fx-font-size: 28px;" +
             "-fx-text-fill: #2c3e50;" +
+            "-fx-font-weight: 600;"
+        );
+        
+        Label descLabel = new Label("Discover movies tailored to your preferences and enjoy a customized viewing experience.");
+        descLabel.setWrapText(true);
+        descLabel.setMaxWidth(600);
+        descLabel.setStyle(
+            "-fx-font-size: 16px;" +
+            "-fx-text-fill: #7f8c8d;" +
+            "-fx-text-alignment: center;" +
+            "-fx-line-spacing: 5px;"
+        );
+        
+        // Feature grid
+        GridPane featuresGrid = new GridPane();
+        featuresGrid.setHgap(30);
+        featuresGrid.setVgap(30);
+        featuresGrid.setAlignment(Pos.CENTER);
+        
+        String[][] features = {
+            {"🎬", "Movie Recommendations", "Get personalized movie suggestions based on your taste"},
+            {"⭐", "Rating System", "Rate movies and build your personal film library"},
+            {"🔍", "Advanced Search", "Find exactly what you're looking for with smart filters"},
+            {"👥", "Social Features", "Share reviews and connect with other film enthusiasts"}
+        };
+        
+        for (int i = 0; i < features.length; i++) {
+            VBox featureBox = new VBox(10);
+            featureBox.setAlignment(Pos.CENTER);
+            featureBox.setPadding(new Insets(20));
+            featureBox.setMaxWidth(180);
+            featureBox.setStyle(
+                "-fx-background-color: #f8f9fa;" +
+                "-fx-background-radius: 15;" +
+                "-fx-border-color: #e9ecef;" +
+                "-fx-border-radius: 15;"
+            );
+            
+            Label iconLabel = new Label(features[i][0]);
+            iconLabel.setStyle("-fx-font-size: 32px;");
+            
+            Label featureTitleLabel = new Label(features[i][1]);
+            featureTitleLabel.setStyle(
+                "-fx-font-size: 14px;" +
+                "-fx-text-fill: #2c3e50;" +
+                "-fx-font-weight: 600;"
+            );
+            
+            Label featureDescLabel = new Label(features[i][2]);
+            featureDescLabel.setWrapText(true);
+            featureDescLabel.setStyle(
+                "-fx-font-size: 12px;" +
+                "-fx-text-fill: #7f8c8d;" +
+                "-fx-text-alignment: center;"
+            );
+            
+            featureBox.getChildren().addAll(iconLabel, featureTitleLabel, featureDescLabel);
+            
+            int col = i % 2;
+            int row = i / 2;
+            featuresGrid.add(featureBox, col, row);
+        }
+        
+        Button exploreButton = new Button("Start Exploring");
+        exploreButton.setStyle(
+            "-fx-background-color: linear-gradient(#667eea, #764ba2);" +
+            "-fx-text-fill: white;" +
+            "-fx-font-size: 16px;" +
+            "-fx-font-weight: 600;" +
+            "-fx-background-radius: 25;" +
+            "-fx-padding: 15 40;" +
+            "-fx-cursor: hand;" +
+            "-fx-border-color: transparent;"
+        );
+        
+        addButtonHoverEffect(exploreButton);
+        
+        contentCard.getChildren().addAll(titleLabel, descLabel, featuresGrid, exploreButton);
+        homePage.getChildren().addAll(header, contentCard);
+    }
+    
+    private void createProfileSpecPage() {
+        profileSpecPage = new VBox(30);
+        profileSpecPage.setAlignment(Pos.CENTER);
+        profileSpecPage.setPadding(new Insets(40));
+        
+        // Header
+        Label headerLabel = new Label("Complete Your Profile");
+        headerLabel.setStyle(
+            "-fx-font-size: 36px;" +
+            "-fx-text-fill: white;" +
+            "-fx-font-weight: 300;"
+        );
+        
+        // Main content card
+        VBox contentCard = new VBox(25);
+        contentCard.setMaxWidth(700);
+        contentCard.setMaxHeight(650);
+        contentCard.setPadding(new Insets(40));
+        contentCard.setAlignment(Pos.CENTER);
+        contentCard.setStyle(
+            "-fx-background-color: white;" +
+            "-fx-background-radius: 20;" +
+            "-fx-effect: dropshadow(gaussian, rgba(0,0,0,0.2), 20, 0, 0, 5);"
+        );
+        
+        Label titleLabel = new Label("Help us personalize your experience");
+        titleLabel.setStyle(
+            "-fx-font-size: 24px;" +
+            "-fx-text-fill: #2c3e50;" +
+            "-fx-font-weight: 600;"
+        );
+        
+        Label descLabel = new Label("Answer a few questions to get a more personalized experience.");
+        descLabel.setWrapText(true);
+        descLabel.setStyle(
+            "-fx-font-size: 16px;" +
+            "-fx-text-fill: #7f8c8d;" +
+            "-fx-text-alignment: center;"
+        );
+        
+        // ScrollPane for questions
+        ScrollPane scrollPane = new ScrollPane();
+        VBox questionsContainer = new VBox(40);
+        questionsContainer.setPadding(new Insets(20));
+
+        Map<String, Integer> answers = new HashMap<>();
+        List<ToggleGroup> toggleGroups = new ArrayList<>();
+        
+        int questionIndex = 1;
+        for (String question : controller.getQuestions()) {
+            VBox questionBox = new VBox(15);
+            
+            Label questionLabel = new Label(questionIndex++ + ". " + question);
+            questionLabel.setStyle(
+                "-fx-font-size: 16px;" +
+                "-fx-text-fill: #2c3e50;" +
+                "-fx-font-weight: 600;"
+            );
+            
+            HBox optionBox = new HBox(8);
+            ToggleGroup group = new ToggleGroup();
+            
+            for (Map.Entry<Integer, String> entry : controller.getOptions().entrySet()) {
+                String optionText = entry.getValue();
+                int optionValue = entry.getKey();
+                
+                RadioButton radioButton = new RadioButton(optionText);
+                radioButton.setToggleGroup(group);
+                radioButton.setStyle(
+                    "-fx-text-fill: #2c3e50;" +
+                    "-fx-font-size: 14px;"
+                );
+                
+                radioButton.setOnAction(e -> {
+                    answers.put(question, optionValue);
+                });
+                
+                optionBox.getChildren().add(radioButton);
+            }
+            
+            toggleGroups.add(group);
+            questionBox.getChildren().addAll(questionLabel, optionBox);
+            questionsContainer.getChildren().add(questionBox);
+        }
+        
+        scrollPane.setContent(questionsContainer);
+        scrollPane.setFitToWidth(true);
+        scrollPane.setHbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
+        scrollPane.setVbarPolicy(ScrollPane.ScrollBarPolicy.AS_NEEDED);
+        scrollPane.setStyle("-fx-background-color: transparent; -fx-background: transparent;");
+        scrollPane.setPrefHeight(300);
+        
+        // Message label
+        Label messageLabel = new Label();
+        messageLabel.setStyle("-fx-font-size: 13px;");
+        
+        // Buttons
+        HBox buttonBox = new HBox(15);
+        buttonBox.setAlignment(Pos.CENTER);
+        
+        Button skipButton = new Button("Skip for now");
+        skipButton.setStyle(
+            "-fx-background-color: transparent;" +
+            "-fx-text-fill: #7f8c8d;" +
+            "-fx-font-size: 14px;" +
+            "-fx-font-weight: 500;" +
+            "-fx-background-radius: 20;" +
+            "-fx-padding: 12 25;" +
+            "-fx-cursor: hand;" +
+            "-fx-border-color: #e9ecef;" +
+            "-fx-border-radius: 20;"
+        );
+        
+        Button completeButton = new Button("Complete Profile");
+        completeButton.setStyle(
+            "-fx-background-color: linear-gradient(#667eea, #764ba2);" +
+            "-fx-text-fill: white;" +
+            "-fx-font-size: 16px;" +
+            "-fx-font-weight: 600;" +
+            "-fx-background-radius: 20;" +
+            "-fx-padding: 12 30;" +
+            "-fx-cursor: hand;" +
+            "-fx-border-color: transparent;"
+        );
+        
+        addButtonHoverEffect(skipButton);
+        addButtonHoverEffect(completeButton);
+        
+        skipButton.setOnAction(e -> showHomePage());
+        
+        completeButton.setOnAction(e -> {
+            boolean allAnswered = toggleGroups.stream().allMatch(
+                group -> group.getSelectedToggle() != null);
+            
+            if (!allAnswered) {
+                showMessage(messageLabel, "Questions remain unanswered!", false);
+                return;
+            }
+            
+            controller.setAnswers(answers);
+            controller.completeProfile();
+            showHomePage();
+            showMessage(messageLabel, "Profile Completed.", true);
+        });
+        
+        buttonBox.getChildren().addAll(skipButton, completeButton);
+        
+        contentCard.getChildren().addAll(titleLabel, descLabel, scrollPane, messageLabel, buttonBox);
+        profileSpecPage.getChildren().addAll(headerLabel, contentCard);
+    }
+    
+    private void showAuthPage() {
+        authPage.setVisible(true);
+        homePage.setVisible(false);
+        profileSpecPage.setVisible(false);
+        primaryStage.setTitle("Account Portal");
+    }
+    
+    private void showHomePage() {
+        authPage.setVisible(false);
+        homePage.setVisible(true);
+        profileSpecPage.setVisible(false);
+        primaryStage.setTitle("Fablemaze - Home");
+    }
+    
+    private void showProfileSpecPage() {
+        authPage.setVisible(false);
+        homePage.setVisible(false);
+        profileSpecPage.setVisible(true);
+        primaryStage.setTitle("Fablemaze - Complete Profile");
+    }
+    
+    private VBox createLeftPanel() {
+        VBox leftPanel = new VBox(30);
+        leftPanel.setPrefWidth(400);
+        leftPanel.setPadding(new Insets(60, 40, 60, 40));
+        leftPanel.setAlignment(Pos.CENTER);
+        leftPanel.setStyle(
+            "-fx-background-color: linear-gradient(#667eea, #764ba2);" +
+            "-fx-background-radius: 20 0 0 20;"
+        );
+        
+        // Logo/Brand area
+        Label brandLabel = new Label("Fablemaze");
+        brandLabel.setStyle(
+            "-fx-font-size: 60px;" +
+            "-fx-text-fill: white;" +
+            "-fx-font-weight: 300;"
+        );
+        
+        Label titleLabel = new Label("Welcome to Fablemaze");
+        titleLabel.setStyle(
+            "-fx-font-size: 30px;" +
+            "-fx-font-weight: 300;" +
+            "-fx-text-fill: white;" +
             "-fx-font-family: 'Segoe UI Light';"
         );
         
-        Label subtitleLabel = new Label("Sign in to your account or create a new one");
-        subtitleLabel.setStyle(
-            "-fx-font-size: 14px;" +
-            "-fx-text-fill: #7f8c8d;" +
-            "-fx-font-family: 'Segoe UI';"
+        Label descriptionLabel = new Label("Your gateway to a personalized and adaptable film-watching experience.");
+        descriptionLabel.setWrapText(true);
+        descriptionLabel.setMaxWidth(300);
+        descriptionLabel.setStyle(
+            "-fx-font-size: 16px;" +
+            "-fx-text-fill: rgba(255,255,255,0.9);" +
+            "-fx-text-alignment: center;" +
+            "-fx-line-spacing: 5px;"
         );
         
-        VBox titleBox = new VBox(5);
-        titleBox.setAlignment(Pos.CENTER);
-        titleBox.getChildren().addAll(titleLabel, subtitleLabel);
+        // Feature highlights
+        VBox featuresBox = new VBox(15);
+        featuresBox.setAlignment(Pos.CENTER_LEFT);
+        featuresBox.setMaxWidth(300);
         
-        // Create tab pane for login/signup
-        TabPane tabPane = new TabPane();
-        tabPane.setStyle(
-            "-fx-tab-min-width: 200px;" +
-            "-fx-tab-max-width: 200px;"
-        );
+        String[] features = {
+            "🔒 Secure & Private",
+            "🎯 Personalized Experience"
+        };
         
-        // Login Tab
-        Tab loginTab = new Tab("Sign In");
-        loginTab.setClosable(false);
-        loginTab.setStyle("-fx-font-family: 'Segoe UI';");
-        VBox loginContent = createLoginTab();
-        loginTab.setContent(loginContent);
+        for (String feature : features) {
+            Label featureLabel = new Label(feature);
+            featureLabel.setStyle(
+                "-fx-font-size: 14px;" +
+                "-fx-text-fill: rgba(255,255,255,0.9);" +
+                "-fx-font-weight: 500;"
+            );
+            featuresBox.getChildren().add(featureLabel);
+        }
         
-        // Signup Tab
-        Tab signupTab = new Tab("Create Account");
-        signupTab.setClosable(false);
-        signupTab.setStyle("-fx-font-family: 'Segoe UI';");
-        VBox signupContent = createSignupTab();
-        signupTab.setContent(signupContent);
-        
-        tabPane.getTabs().addAll(loginTab, signupTab);
-        
-        mainCard.getChildren().addAll(titleBox, tabPane);
-        root.getChildren().add(mainCard);
-        
-        loginScene = new Scene(root, 600, 700);
+        leftPanel.getChildren().addAll(brandLabel, titleLabel, descriptionLabel, featuresBox);
+        return leftPanel;
     }
     
-    private VBox createLoginTab() {
-        VBox loginBox = new VBox(20);
-        loginBox.setPadding(new Insets(30, 0, 0, 0));
-        loginBox.setAlignment(Pos.CENTER);
+    private VBox createRightPanel() {
+        VBox rightPanel = new VBox(30);
+        rightPanel.setPrefWidth(500);
+        rightPanel.setPadding(new Insets(60, 60, 60, 60));
+        rightPanel.setAlignment(Pos.TOP_CENTER);
+        
+        // Header with toggle buttons
+        VBox headerBox = createHeader();
+        
+        // Forms container
+        StackPane formsContainer = new StackPane();
+        formsContainer.setAlignment(Pos.TOP_CENTER);
+        
+        // Create login and signup forms
+        loginForm = createLoginForm();
+        signupForm = createSignupForm();
+        
+        // Initially show login form
+        formsContainer.getChildren().addAll(signupForm, loginForm);
+        signupForm.setVisible(false);
+        
+        rightPanel.getChildren().addAll(headerBox, formsContainer);
+        return rightPanel;
+    }
+    
+    private VBox createHeader() {
+        VBox headerBox = new VBox(20);
+        headerBox.setAlignment(Pos.CENTER);
+        
+        // Toggle buttons
+        HBox toggleBox = new HBox(0);
+        toggleBox.setAlignment(Pos.CENTER);
+        toggleBox.setStyle(
+            "-fx-background-color: #f8f9fa;" +
+            "-fx-background-radius: 30;" +
+            "-fx-padding: 5;"
+        );
+        
+        loginToggle = new Button("Sign In");
+        signupToggle = new Button("Sign Up");
+        
+        String activeStyle = 
+            "-fx-background-color: white;" +
+            "-fx-text-fill: #2c3e50;" +
+            "-fx-font-size: 14px;" +
+            "-fx-font-weight: 600;" +
+            "-fx-background-radius: 25;" +
+            "-fx-padding: 12 30;" +
+            "-fx-cursor: hand;" +
+            "-fx-border-color: transparent;" +
+            "-fx-effect: dropshadow(gaussian, rgba(0,0,0,0.1), 10, 0, 0, 2);";
+        
+        String inactiveStyle = 
+            "-fx-background-color: transparent;" +
+            "-fx-text-fill: #7f8c8d;" +
+            "-fx-font-size: 14px;" +
+            "-fx-font-weight: 500;" +
+            "-fx-background-radius: 25;" +
+            "-fx-padding: 12 30;" +
+            "-fx-cursor: hand;" +
+            "-fx-border-color: transparent;";
+        
+        loginToggle.setStyle(activeStyle);
+        signupToggle.setStyle(inactiveStyle);
+        
+        loginToggle.setOnAction(e -> switchToLogin());
+        signupToggle.setOnAction(e -> switchToSignup());
+        
+        toggleBox.getChildren().addAll(loginToggle, signupToggle);
+        
+        Label subtitleLabel = new Label("Enter your details to continue");
+        subtitleLabel.setStyle(
+            "-fx-font-size: 14px;" +
+            "-fx-text-fill: #7f8c8d;"
+        );
+        
+        headerBox.getChildren().addAll(toggleBox, subtitleLabel);
+        return headerBox;
+    }
+    
+    private VBox createLoginForm() {
+        VBox form = new VBox(25);
+        form.setAlignment(Pos.CENTER);
+        form.setMaxWidth(350);
         
         // Username field
-        VBox usernameBox = new VBox(8);
-        Label usernameLabel = new Label("Username");
-        usernameLabel.setStyle("-fx-font-size: 13px; -fx-text-fill: #2c3e50; -fx-font-weight: 500;");
-        
-        TextField usernameField = new TextField();
-        usernameField.setPromptText("Enter your username");
-        usernameField.setStyle(getModernTextFieldStyle());
-        usernameField.setPrefHeight(45);
-        
-        usernameBox.getChildren().addAll(usernameLabel, usernameField);
+        VBox usernameBox = createInputField("Username", "Enter your username", false);
+        TextField usernameField = (TextField) ((VBox) usernameBox.getChildren().get(1)).getChildren().get(0);
         
         // Password field
-        VBox passwordBox = new VBox(8);
-        Label passwordLabel = new Label("Password");
-        passwordLabel.setStyle("-fx-font-size: 13px; -fx-text-fill: #2c3e50; -fx-font-weight: 500;");
+        VBox passwordBox = createInputField("Password", "Enter your password", true);
+        PasswordField passwordField = (PasswordField) ((VBox) passwordBox.getChildren().get(1)).getChildren().get(0);
         
-        PasswordField passwordField = new PasswordField();
-        passwordField.setPromptText("Enter your password");
-        passwordField.setStyle(getModernTextFieldStyle());
-        passwordField.setPrefHeight(45);
-        
-        passwordBox.getChildren().addAll(passwordLabel, passwordField);
+        // Remember me checkbox
+        CheckBox rememberBox = new CheckBox("Remember me");
+        rememberBox.setStyle(
+            "-fx-text-fill: #7f8c8d;" +
+            "-fx-font-size: 13px;"
+        );
         
         // Login button
         Button loginButton = new Button("Sign In");
-        loginButton.setStyle(getPrimaryButtonStyle());
-        loginButton.setPrefHeight(50);
+        loginButton.setStyle(
+            "-fx-background-color: linear-gradient(#667eea, #764ba2);" +
+            "-fx-text-fill: white;" +
+            "-fx-font-size: 16px;" +
+            "-fx-font-weight: 600;" +
+            "-fx-background-radius: 10;" +
+            "-fx-padding: 15 0;" +
+            "-fx-cursor: hand;" +
+            "-fx-border-color: transparent;"
+        );
         loginButton.setMaxWidth(Double.MAX_VALUE);
         
         // Message label
         Label messageLabel = new Label();
         messageLabel.setStyle("-fx-font-size: 13px;");
         
-        // Hover effects
+        // Forgot password link
+        Label forgotLabel = new Label("Forgot your password?");
+        forgotLabel.setStyle(
+            "-fx-text-fill: #667eea;" +
+            "-fx-font-size: 13px;" +
+            "-fx-cursor: hand;" +
+            "-fx-underline: true;"
+        );
+        
         addButtonHoverEffect(loginButton);
         
         loginButton.setOnAction(e -> {
@@ -167,83 +596,127 @@ public class GUI extends Application {
             String password = passwordField.getText();
             
             if (username.isEmpty() || password.isEmpty()) {
-                messageLabel.setText("Please fill in all fields");
-                messageLabel.setStyle("-fx-text-fill: #e74c3c; -fx-font-size: 13px;");
+                showMessage(messageLabel, "Please fill in all fields", false);
                 return;
             }
             
-            // Here you would call your AppController to handle login
-            // For demo purposes, just show success
-            messageLabel.setText("Login successful!");
-            messageLabel.setStyle("-fx-text-fill: #27ae60; -fx-font-size: 13px;");
+            String result = controller.login(username, password);
             
-            usernameField.clear();
-            passwordField.clear();
+            if (result.endsWith("Login successful!")) {
+                showMessage(messageLabel, result, true);
+                currentUsername = username;
+                usernameField.clear();
+                passwordField.clear();
+                showHomePage();
+                
+            } else {
+                showMessage(messageLabel, result, false);
+            }
         });
         
-        loginBox.getChildren().addAll(usernameBox, passwordBox, loginButton, messageLabel);
-        return loginBox;
+        form.getChildren().addAll(
+            usernameBox, passwordBox, rememberBox, loginButton, messageLabel, forgotLabel
+        );
+        
+        return form;
     }
     
-    private VBox createSignupTab() {
-        VBox signupBox = new VBox(20);
-        signupBox.setPadding(new Insets(20, 0, 0, 0));
-        signupBox.setAlignment(Pos.CENTER);
+    private VBox createSignupForm() {
+        ScrollPane scrollPane = new ScrollPane();
+        VBox form = new VBox(20);
+        form.setAlignment(Pos.CENTER);
+        form.setMaxWidth(350);
+        form.setPadding(new Insets(0, 10, 0, 15)); // Add right padding for scrollbar
         
         // Username field
-        VBox usernameBox = new VBox(8);
-        Label usernameLabel = new Label("Username");
-        usernameLabel.setStyle("-fx-font-size: 13px; -fx-text-fill: #2c3e50; -fx-font-weight: 500;");
-        
-        TextField usernameField = new TextField();
-        usernameField.setPromptText("Choose a username");
-        usernameField.setStyle(getModernTextFieldStyle());
-        usernameField.setPrefHeight(45);
-        
-        usernameBox.getChildren().addAll(usernameLabel, usernameField);
+        VBox usernameBox = createInputField("Username", "Choose a username", false);
+        TextField usernameField = (TextField) ((VBox) usernameBox.getChildren().get(1)).getChildren().get(0);
         
         // Password field
-        VBox passwordBox = new VBox(8);
-        Label passwordLabel = new Label("Password");
-        passwordLabel.setStyle("-fx-font-size: 13px; -fx-text-fill: #2c3e50; -fx-font-weight: 500;");
+        VBox passwordBox = createInputField("Password", "Create a password", true);
+        PasswordField passwordField = (PasswordField) ((VBox) passwordBox.getChildren().get(1)).getChildren().get(0);
         
-        PasswordField passwordField = new PasswordField();
-        passwordField.setPromptText("Create a password");
-        passwordField.setStyle(getModernTextFieldStyle());
-        passwordField.setPrefHeight(45);
-        
-        passwordBox.getChildren().addAll(passwordLabel, passwordField);
+        // Confirm password field
+        VBox confirmPasswordBox = createInputField("Confirm Password", "Confirm your password", true);
+        PasswordField confirmPasswordField = (PasswordField) ((VBox) confirmPasswordBox.getChildren().get(1)).getChildren().get(0);
         
         // Date of birth field
         VBox dobBox = new VBox(8);
         Label dobLabel = new Label("Date of Birth");
-        dobLabel.setStyle("-fx-font-size: 13px; -fx-text-fill: #2c3e50; -fx-font-weight: 500;");
+        dobLabel.setStyle("-fx-font-size: 13px; -fx-text-fill: #2c3e50; -fx-font-weight: 600;");
+        
+        VBox dobFieldBox = new VBox();
+        dobFieldBox.setStyle(
+            "-fx-background-color: #f8f9fa;" +
+            "-fx-border-color: #e9ecef;" +
+            "-fx-border-width: 2;" +
+            "-fx-border-radius: 10;" +
+            "-fx-background-radius: 10;"
+        );
         
         DatePicker dobPicker = new DatePicker();
         dobPicker.setPromptText("Select your birth date");
-        dobPicker.setStyle(getModernTextFieldStyle());
-        dobPicker.setPrefHeight(45);
+        dobPicker.setStyle(
+            "-fx-background-color: transparent;" +
+            "-fx-border-color: transparent;" +
+            "-fx-padding: 12;" +
+            "-fx-font-size: 14px;" +
+            "-fx-text-fill: #2c3e50;"
+        );
+        dobPicker.setMaxWidth(Double.MAX_VALUE);
         
-        dobBox.getChildren().addAll(dobLabel, dobPicker);
+        dobFieldBox.getChildren().add(dobPicker);
+        dobBox.getChildren().addAll(dobLabel, dobFieldBox);
         
-        // Sex field
-        VBox sexBox = new VBox(8);
-        Label sexLabel = new Label("Gender");
-        sexLabel.setStyle("-fx-font-size: 13px; -fx-text-fill: #2c3e50; -fx-font-weight: 500;");
+        // Gender field
+        VBox genderBox = new VBox(8);
+        Label genderLabel = new Label("Gender");
+        genderLabel.setStyle("-fx-font-size: 13px; -fx-text-fill: #2c3e50; -fx-font-weight: 600;");
         
-        ComboBox<String> sexComboBox = new ComboBox<>();
-        sexComboBox.getItems().addAll("Male", "Female", "Non-binary", "Prefer not to say");
-        sexComboBox.setPromptText("Select gender");
-        sexComboBox.setStyle(getModernTextFieldStyle());
-        sexComboBox.setPrefHeight(45);
-        sexComboBox.setMaxWidth(Double.MAX_VALUE);
+        VBox genderFieldBox = new VBox();
+        genderFieldBox.setStyle(
+            "-fx-background-color: #f8f9fa;" +
+            "-fx-border-color: #e9ecef;" +
+            "-fx-border-width: 2;" +
+            "-fx-border-radius: 10;" +
+            "-fx-background-radius: 10;"
+        );
         
-        sexBox.getChildren().addAll(sexLabel, sexComboBox);
+        ComboBox<String> genderComboBox = new ComboBox<>();
+        genderComboBox.getItems().addAll("Male", "Female", "Non-binary", "Prefer not to say");
+        genderComboBox.setPromptText("Select gender");
+        genderComboBox.setStyle(
+            "-fx-background-color: transparent;" +
+            "-fx-border-color: transparent;" +
+            "-fx-padding: 12;" +
+            "-fx-font-size: 14px;" +
+            "-fx-text-fill: #2c3e50;"
+        );
+        genderComboBox.setMaxWidth(Double.MAX_VALUE);
+        
+        genderFieldBox.getChildren().add(genderComboBox);
+        genderBox.getChildren().addAll(genderLabel, genderFieldBox);
+        
+        // Terms checkbox
+        CheckBox termsBox = new CheckBox("I agree to the Terms of Service and Privacy Policy");
+        termsBox.setWrapText(true);
+        termsBox.setStyle(
+            "-fx-text-fill: #7f8c8d;" +
+            "-fx-font-size: 12px;"
+        );
         
         // Signup button
         Button signupButton = new Button("Create Account");
-        signupButton.setStyle(getSecondaryButtonStyle());
-        signupButton.setPrefHeight(50);
+        signupButton.setStyle(
+            "-fx-background-color: linear-gradient(#667eea, #764ba2);" +
+            "-fx-text-fill: white;" +
+            "-fx-font-size: 16px;" +
+            "-fx-font-weight: 600;" +
+            "-fx-background-radius: 10;" +
+            "-fx-padding: 15 0;" +
+            "-fx-cursor: hand;" +
+            "-fx-border-color: transparent;"
+        );
         signupButton.setMaxWidth(Double.MAX_VALUE);
         
         Label messageLabel = new Label();
@@ -254,321 +727,216 @@ public class GUI extends Application {
         signupButton.setOnAction(e -> {
             String username = usernameField.getText().trim();
             String password = passwordField.getText();
+            String confirmPassword = confirmPasswordField.getText();
             LocalDate dob = dobPicker.getValue();
-            String sex = sexComboBox.getValue();
+            String gender = genderComboBox.getValue();
             
-            if (username.isEmpty() || password.isEmpty() || dob == null || sex == null) {
-                messageLabel.setText("Please fill in all fields");
-                messageLabel.setStyle("-fx-text-fill: #e74c3c; -fx-font-size: 13px;");
+            if (username.isEmpty() || password.isEmpty() || 
+                confirmPassword.isEmpty() || dob == null || gender == null) {
+                showMessage(messageLabel, "Please fill in all fields", false);
                 return;
             }
             
-            // Here you would call your AppController to handle signup
-            // For demo purposes, move to profile creation
-            primaryStage.setScene(profileScene);
+            if (username.length() < 5) {
+                showMessage(messageLabel, "Username must be at least 5 characters long.", false);
+                return;
+            }
+            
+            if (password.length() < 8) {
+                showMessage(messageLabel, "Password must be at least 8 characters long.", false);
+                return;
+            }
+            
+            if (!password.equals(confirmPassword)) {
+                showMessage(messageLabel, "Passwords do not match", false);
+                return;
+            }
+            
+            if (!termsBox.isSelected()) {
+                showMessage(messageLabel, "Please accept the terms and conditions", false);
+                return;
+            }
+            
+            String result = controller.signUp(username, password, dob, gender);
+            
+            if (result.equals("Sign-Up successful!")) {
+                showMessage(messageLabel, result, true);
+                currentUsername = username;
+                usernameField.clear();
+                passwordField.clear();
+                confirmPasswordField.clear();
+                dobPicker.setValue(null);
+                genderComboBox.setValue(null);
+                termsBox.setSelected(false);
+                showProfileSpecPage();
+                
+            } else {
+                showMessage(messageLabel, result, false);
+            }
         });
         
-        signupBox.getChildren().addAll(usernameBox, passwordBox, dobBox, sexBox, signupButton, messageLabel);
-        return signupBox;
-    }
-    
-    private void createProfileScene() {
-        // Main container with gradient background
-        StackPane root = new StackPane();
-        root.setStyle("-fx-background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);");
+        form.getChildren().addAll(
+            usernameBox, passwordBox, confirmPasswordBox, 
+            dobBox, genderBox, termsBox, signupButton, messageLabel
+        );
         
-        ScrollPane scrollPane = new ScrollPane();
-        scrollPane.setStyle("-fx-background: transparent; -fx-background-color: transparent;");
+        // Wrap in ScrollPane
+        scrollPane.setContent(form);
         scrollPane.setFitToWidth(true);
         scrollPane.setHbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
+        scrollPane.setVbarPolicy(ScrollPane.ScrollBarPolicy.AS_NEEDED);
+        scrollPane.setStyle("-fx-background-color: transparent; -fx-background: transparent;");
+        scrollPane.setPrefHeight(400);
         
-        VBox contentBox = new VBox(30);
-        contentBox.setPadding(new Insets(40));
-        contentBox.setAlignment(Pos.TOP_CENTER);
+        VBox container = new VBox();
+        container.getChildren().add(scrollPane);
+        return container;
+    }
+    
+    private VBox createInputField(String labelText, String placeholder, boolean isPassword) {
+        VBox fieldBox = new VBox(8);
         
-        // Header card
-        VBox headerCard = new VBox(15);
-        headerCard.setStyle(
-            "-fx-background-color: rgba(255, 255, 255, 0.95);" +
-            "-fx-background-radius: 20;" +
-            "-fx-padding: 40;" +
-            "-fx-alignment: center;"
-        );
-        headerCard.setMaxWidth(800);
-        headerCard.setEffect(createShadowEffect());
+        Label label = new Label(labelText);
+        label.setStyle("-fx-font-size: 13px; -fx-text-fill: #2c3e50; -fx-font-weight: 600;");
         
-        Label titleLabel = new Label("Complete Your Profile");
-        titleLabel.setStyle(
-            "-fx-font-size: 28px;" +
-            "-fx-font-weight: 300;" +
-            "-fx-text-fill: #2c3e50;" +
-            "-fx-font-family: 'Segoe UI Light';"
-        );
-        
-        Label instructionLabel = new Label("Help us get to know you better by answering these questions");
-        instructionLabel.setWrapText(true);
-        instructionLabel.setMaxWidth(600);
-        instructionLabel.setStyle(
-            "-fx-font-size: 16px;" +
-            "-fx-text-fill: #7f8c8d;" +
-            "-fx-text-alignment: center;"
+        VBox inputContainer = new VBox();
+        inputContainer.setStyle(
+            "-fx-background-color: #f8f9fa;" +
+            "-fx-border-color: #e9ecef;" +
+            "-fx-border-width: 2;" +
+            "-fx-border-radius: 10;" +
+            "-fx-background-radius: 10;"
         );
         
-        headerCard.getChildren().addAll(titleLabel, instructionLabel);
-        
-        // Questions container
-        VBox questionsContainer = new VBox(25);
-        questionsContainer.setAlignment(Pos.CENTER);
-        questionsContainer.setMaxWidth(800);
-        
-        // Profile questions
-        String[] questions = {
-            "I enjoy meeting new people and socializing",
-            "I prefer to plan things in advance rather than be spontaneous",
-            "I am comfortable being the center of attention",
-            "I enjoy creative activities like art, music, or writing",
-            "I like to help others with their problems",
-            "I prefer working alone rather than in a team",
-            "I enjoy taking risks and trying new experiences",
-            "I am very organized and like to keep things tidy",
-            "I prefer facts and logic over emotions when making decisions",
-            "I enjoy competitive activities and sports"
-        };
-        
-        List<ToggleGroup> answerGroups = new ArrayList<>();
-        
-        for (int i = 0; i < questions.length; i++) {
-            VBox questionCard = createQuestionCard(questions[i], i + 1);
-            ToggleGroup group = createQuestionOptions(questionCard);
-            answerGroups.add(group);
-            questionsContainer.getChildren().add(questionCard);
+        TextField inputField;
+        if (isPassword) {
+            inputField = new PasswordField();
+        } else {
+            inputField = new TextField();
         }
         
-        // Complete button card
-        VBox buttonCard = new VBox(20);
-        buttonCard.setStyle(
-            "-fx-background-color: rgba(255, 255, 255, 0.95);" +
-            "-fx-background-radius: 20;" +
-            "-fx-padding: 40;" +
-            "-fx-alignment: center;"
-        );
-        buttonCard.setMaxWidth(800);
-        buttonCard.setEffect(createShadowEffect());
-        
-        Button completeButton = new Button("Complete Profile");
-        completeButton.setStyle(
-            "-fx-background-color: linear-gradient(45deg, #667eea, #764ba2);" +
-            "-fx-text-fill: white;" +
-            "-fx-font-size: 18px;" +
-            "-fx-font-weight: 600;" +
-            "-fx-padding: 15 40;" +
-            "-fx-background-radius: 25;" +
-            "-fx-cursor: hand;" +
-            "-fx-border-color: transparent;"
+        inputField.setPromptText(placeholder);
+        inputField.setStyle(
+            "-fx-background-color: transparent;" +
+            "-fx-border-color: transparent;" +
+            "-fx-padding: 12;" +
+            "-fx-font-size: 14px;" +
+            "-fx-text-fill: #2c3e50;" +
+            "-fx-prompt-text-fill: #95a5a6;"
         );
         
-        Label resultLabel = new Label();
-        resultLabel.setStyle("-fx-font-size: 14px;");
-        
-        addButtonHoverEffect(completeButton);
-        
-        completeButton.setOnAction(e -> {
-            // Check if all questions are answered
-            boolean allAnswered = answerGroups.stream()
-                .allMatch(group -> group.getSelectedToggle() != null);
-            
-            if (!allAnswered) {
-                showModernAlert("Incomplete Profile", "Please answer all questions to complete your profile.");
-                return;
-            }
-            
-            // Collect answers for AppController
-            List<String> answers = new ArrayList<>();
-            for (ToggleGroup group : answerGroups) {
-                RadioButton selected = (RadioButton) group.getSelectedToggle();
-                answers.add(selected.getText());
-            }
-            
-            // Here you would pass answers to your AppController
-            resultLabel.setText("✓ Profile completed successfully!");
-            resultLabel.setStyle("-fx-text-fill: #27ae60; -fx-font-size: 16px; -fx-font-weight: 600;");
-            
-            // Add back button
-            Button backButton = new Button("Back to Login");
-            backButton.setStyle(getSecondaryButtonStyle());
-            backButton.setOnAction(event -> primaryStage.setScene(loginScene));
-            addButtonHoverEffect(backButton);
-            
-            if (!buttonCard.getChildren().contains(backButton)) {
-                buttonCard.getChildren().add(backButton);
+        // Focus effects
+        inputField.focusedProperty().addListener((obs, wasFocused, isNowFocused) -> {
+            if (isNowFocused) {
+                inputContainer.setStyle(
+                    "-fx-background-color: #f8f9fa;" +
+                    "-fx-border-color: #667eea;" +
+                    "-fx-border-width: 2;" +
+                    "-fx-border-radius: 10;" +
+                    "-fx-background-radius: 10;"
+                );
+            } else {
+                inputContainer.setStyle(
+                    "-fx-background-color: #f8f9fa;" +
+                    "-fx-border-color: #e9ecef;" +
+                    "-fx-border-width: 2;" +
+                    "-fx-border-radius: 10;" +
+                    "-fx-background-radius: 10;"
+                );
             }
         });
         
-        buttonCard.getChildren().addAll(completeButton, resultLabel);
+        inputContainer.getChildren().add(inputField);
+        fieldBox.getChildren().addAll(label, inputContainer);
         
-        contentBox.getChildren().addAll(headerCard, questionsContainer, buttonCard);
-        scrollPane.setContent(contentBox);
-        root.getChildren().add(scrollPane);
-        
-        profileScene = new Scene(root, 900, 700);
+        return fieldBox;
     }
     
-    private VBox createQuestionCard(String question, int number) {
-        VBox questionCard = new VBox(20);
-        questionCard.setStyle(
-            "-fx-background-color: rgba(255, 255, 255, 0.95);" +
-            "-fx-background-radius: 15;" +
-            "-fx-padding: 30;"
-        );
-        questionCard.setEffect(createShadowEffect());
-        
-        HBox headerBox = new HBox(15);
-        headerBox.setAlignment(Pos.CENTER_LEFT);
-        
-        Label numberLabel = new Label(String.valueOf(number));
-        numberLabel.setStyle(
-            "-fx-background-color: linear-gradient(45deg, #667eea, #764ba2);" +
-            "-fx-text-fill: white;" +
-            "-fx-font-size: 16px;" +
-            "-fx-font-weight: bold;" +
-            "-fx-padding: 8 12;" +
-            "-fx-background-radius: 20;" +
-            "-fx-min-width: 35;" +
-            "-fx-alignment: center;"
-        );
-        
-        Label questionLabel = new Label(question);
-        questionLabel.setWrapText(true);
-        questionLabel.setStyle(
-            "-fx-font-size: 18px;" +
-            "-fx-font-weight: 500;" +
-            "-fx-text-fill: #2c3e50;"
-        );
-        
-        headerBox.getChildren().addAll(numberLabel, questionLabel);
-        questionCard.getChildren().add(headerBox);
-        
-        return questionCard;
-    }
-    
-    private ToggleGroup createQuestionOptions(VBox questionCard) {
-        ToggleGroup group = new ToggleGroup();
-        
-        HBox optionsBox = new HBox(15);
-        optionsBox.setAlignment(Pos.CENTER);
-        
-        String[] options = {"Not like me", "Somewhat like me", "Moderately like me", "Very like me", "Extremely like me"};
-        String[] colors = {"#e74c3c", "#f39c12", "#f1c40f", "#2ecc71", "#27ae60"};
-        
-        for (int i = 0; i < options.length; i++) {
-            VBox optionBox = new VBox(8);
-            optionBox.setAlignment(Pos.CENTER);
+    private void switchToLogin() {
+        if (!isLoginMode) {
+            isLoginMode = true;
             
-            RadioButton rb = new RadioButton();
-            rb.setToggleGroup(group);
-            rb.setStyle("-fx-text-fill: transparent;");
-            
-            Label optionLabel = new Label(options[i]);
-            optionLabel.setWrapText(true);
-            optionLabel.setMaxWidth(120);
-            optionLabel.setStyle(
-                "-fx-font-size: 12px;" +
-                "-fx-text-fill: #7f8c8d;" +
-                "-fx-text-alignment: center;" +
-                "-fx-font-weight: 500;"
+            // Update toggle button styles
+            loginToggle.setStyle(
+                "-fx-background-color: white;" +
+                "-fx-text-fill: #2c3e50;" +
+                "-fx-font-size: 14px;" +
+                "-fx-font-weight: 600;" +
+                "-fx-background-radius: 25;" +
+                "-fx-padding: 12 30;" +
+                "-fx-cursor: hand;" +
+                "-fx-border-color: transparent;" +
+                "-fx-effect: dropshadow(gaussian, rgba(0,0,0,0.1), 10, 0, 0, 2);"
             );
             
-            final String color = colors[i];
-            final Label label = optionLabel;
+            signupToggle.setStyle(
+                "-fx-background-color: transparent;" +
+                "-fx-text-fill: #7f8c8d;" +
+                "-fx-font-size: 14px;" +
+                "-fx-font-weight: 500;" +
+                "-fx-background-radius: 25;" +
+                "-fx-padding: 12 30;" +
+                "-fx-cursor: hand;" +
+                "-fx-border-color: transparent;"
+            );
             
-            // Custom styling for selected state
-            rb.selectedProperty().addListener((obs, wasSelected, isSelected) -> {
-                if (isSelected) {
-                    label.setStyle(
-                        "-fx-font-size: 12px;" +
-                        "-fx-text-fill: " + color + ";" +
-                        "-fx-text-alignment: center;" +
-                        "-fx-font-weight: bold;"
-                    );
-                } else {
-                    label.setStyle(
-                        "-fx-font-size: 12px;" +
-                        "-fx-text-fill: #7f8c8d;" +
-                        "-fx-text-alignment: center;" +
-                        "-fx-font-weight: 500;"
-                    );
-                }
-            });
-            
-            optionBox.getChildren().addAll(rb, optionLabel);
-            optionsBox.getChildren().add(optionBox);
+            // Show login form
+            loginForm.setVisible(true);
+            signupForm.setVisible(false);
         }
-        
-        questionCard.getChildren().add(optionsBox);
-        return group;
     }
     
-    private DropShadow createShadowEffect() {
-        DropShadow shadow = new DropShadow();
-        shadow.setRadius(15);
-        shadow.setOffsetY(5);
-        shadow.setColor(Color.color(0, 0, 0, 0.2));
-        return shadow;
+    private void switchToSignup() {
+        if (isLoginMode) {
+            isLoginMode = false;
+            
+            // Update toggle button styles
+            signupToggle.setStyle(
+                "-fx-background-color: white;" +
+                "-fx-text-fill: #2c3e50;" +
+                "-fx-font-size: 14px;" +
+                "-fx-font-weight: 600;" +
+                "-fx-background-radius: 25;" +
+                "-fx-padding: 12 30;" +
+                "-fx-cursor: hand;" +
+                "-fx-border-color: transparent;" +
+                "-fx-effect: dropshadow(gaussian, rgba(0,0,0,0.1), 10, 0, 0, 2);"
+            );
+            
+            loginToggle.setStyle(
+                "-fx-background-color: transparent;" +
+                "-fx-text-fill: #7f8c8d;" +
+                "-fx-font-size: 14px;" +
+                "-fx-font-weight: 500;" +
+                "-fx-background-radius: 25;" +
+                "-fx-padding: 12 30;" +
+                "-fx-cursor: hand;" +
+                "-fx-border-color: transparent;"
+            );
+            
+            // Show signup form
+            signupForm.setVisible(true);
+            loginForm.setVisible(false);
+        }
     }
     
-    private String getModernTextFieldStyle() {
-        return "-fx-background-color: #f8f9fa;" +
-               "-fx-border-color: #e9ecef;" +
-               "-fx-border-width: 2;" +
-               "-fx-border-radius: 8;" +
-               "-fx-background-radius: 8;" +
-               "-fx-padding: 12;" +
-               "-fx-font-size: 14px;" +
-               "-fx-text-fill: #2c3e50;" +
-               "-fx-prompt-text-fill: #95a5a6;";
-    }
-    
-    private String getPrimaryButtonStyle() {
-        return "-fx-background-color: linear-gradient(45deg, #667eea, #764ba2);" +
-               "-fx-text-fill: white;" +
-               "-fx-font-size: 16px;" +
-               "-fx-font-weight: 600;" +
-               "-fx-background-radius: 8;" +
-               "-fx-cursor: hand;" +
-               "-fx-border-color: transparent;";
-    }
-    
-    private String getSecondaryButtonStyle() {
-        return "-fx-background-color: linear-gradient(45deg, #667eea, #764ba2);" +
-               "-fx-text-fill: white;" +
-               "-fx-font-size: 16px;" +
-               "-fx-font-weight: 600;" +
-               "-fx-background-radius: 8;" +
-               "-fx-cursor: hand;" +
-               "-fx-border-color: transparent;";
+    private void showMessage(Label messageLabel, String message, boolean isSuccess) {
+        messageLabel.setText(message);
+        if (isSuccess) {
+            messageLabel.setStyle("-fx-text-fill: #27ae60; -fx-font-size: 13px; -fx-font-weight: 500;");
+        } else {
+            messageLabel.setStyle("-fx-text-fill: #e74c3c; -fx-font-size: 13px; -fx-font-weight: 500;");
+        }
     }
     
     private void addButtonHoverEffect(Button button) {
-        button.setOnMouseEntered(e -> 
-            button.setStyle(button.getStyle() + "-fx-scale-x: 1.02; -fx-scale-y: 1.02;"));
-        button.setOnMouseExited(e -> 
-            button.setStyle(button.getStyle().replace("-fx-scale-x: 1.02; -fx-scale-y: 1.02;", "")));
-    }
-    
-    private void showModernAlert(String title, String message) {
-        Alert alert = new Alert(Alert.AlertType.WARNING);
-        alert.setTitle(title);
-        alert.setHeaderText(null);
-        alert.setContentText(message);
-        
-        // Style the alert
-        DialogPane dialogPane = alert.getDialogPane();
-        dialogPane.setStyle(
-            "-fx-background-color: white;" +
-            "-fx-font-family: 'Segoe UI';"
-        );
-        
-        alert.showAndWait();
+        String originalStyle = button.getStyle();
+        button.setOnMouseEntered(e -> {
+            button.setStyle(button.getStyle() + "-fx-scale-x: 1.02; -fx-scale-y: 1.02;");
+        });
+        button.setOnMouseExited(e -> {
+            button.setStyle(originalStyle);
+        });
     }
     
     public static void main(String[] args) {

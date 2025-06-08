@@ -9,7 +9,7 @@ import java.util.ArrayList;
 import model.*;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
-import java.time.LocalDateTime;
+import java.time.LocalDate;
 import java.util.HashMap;
 
 import java.util.List;
@@ -22,10 +22,12 @@ public class AppController {
     private final MovieDAO movieDAO = new MovieDAO();
     private final SceneDAO sceneDAO = new SceneDAO();
     private final SceneVariantDAO variantDAO = new SceneVariantDAO();
-    private final DropOffDAO dropOffDAO = new DropOffDAO();
+    private final SceneViewingDAO sceneViewingDAO = new SceneViewingDAO();
+    private final ViewingSessionDAO viewingSessionDAO = new ViewingSessionDAO();
     
     private User currentUser;
     private Map<String, String> questionToTrait = new HashMap();
+    private Map<Integer, String> valueToOption = new HashMap();
     private Map<String, List<Integer>> traitToAnswers = new HashMap();
     
     public AppController() {
@@ -45,24 +47,22 @@ public class AppController {
         questionToTrait.put("I try to get along with everyone.", "Agreeableness");
         questionToTrait.put("I complete tasks thoroughly and on time.", "Conscientiousness");
         
-        questionToTrait.put("I like to start conversations with people.", "Extraversion");
-        questionToTrait.put("I have frequent mood swings.", "Neuroticism");
-        questionToTrait.put("I enjoy thinking about abstract or philosophical ideas.", "Openness");
-        questionToTrait.put("I am considerate and kind to almost everyone.", "Agreeableness");
-        questionToTrait.put("I follow through with my plans and goals.", "Conscientiousness");
-        
-        questionToTrait.put("I prefer spending time with others over being alone.", "Extraversion");
-        questionToTrait.put("I often feel sad or down.", "Neuroticism");
-        questionToTrait.put("I like to explore unfamiliar places and ideas.", "Openness");
-        questionToTrait.put("I go out of my way to help others.", "Agreeableness");
-        questionToTrait.put("I avoid careless mistakes.", "Conscientiousness");
+        valueToOption.put(1, "Strongly disagree");
+        valueToOption.put(2, "Disagree");
+        valueToOption.put(3, "Neutral");
+        valueToOption.put(4, "Agree");
+        valueToOption.put(5, "Strongly agree");
     }
     
     public Set<String> getQuestions() {
         return questionToTrait.keySet();
     }
     
-    public void setAnswers(HashMap<String, Integer> questionToAnswer) {
+    public Map<Integer, String> getOptions() {
+        return valueToOption;
+    }
+    
+    public void setAnswers(Map<String, Integer> questionToAnswer) {
         for (Map.Entry<String, Integer> entry : questionToAnswer.entrySet()) {
             String question = entry.getKey();
             Integer answer = entry.getValue();
@@ -95,6 +95,8 @@ public class AppController {
                 traitToScore.getOrDefault("Neuroticism", 0.0) / 5.0,
                 traitToScore.getOrDefault("Conscientiousness", 0.0) / 5.0
         );
+        
+        traitToAnswers.clear();
     }
     
     public String login(String username, String password) {
@@ -109,62 +111,22 @@ public class AppController {
         }
         
         currentUser = user;
-        return "Login was successful.";
+        return "Login successful!";
     }
 
-    public String signUp(String username, String password, String dob, String sex) {
+    public String signUp(String username, String password, LocalDate dob, String sex) {
         if (userDAO.getUserByUsername(username) != null) {
             return "Username already in use!";
         }
         
-        User user = new User(username, hashPassword(password), dob, sex);
+        User user = new User(username, hashPassword(password), dob.toString(), sex);
         
         if (userDAO.insertUser(user)) {
             currentUser = user;
-            return "SignUp was successful.";
+            return "Sign-Up successful!";
         }
         
         return "Something went wrong!";
-    }
-
-    public Movie getMovie(int movieId) {
-        return movieDAO.getMovieById(movieId);
-    }
-
-    public List<Scene> getScenesForMovie(int movieId) {
-        return sceneDAO.getScenesByMovieId(movieId);
-    }
-
-    public List<SceneVariant> getVariantsForScene(int sceneId) {
-        return variantDAO.getVariantsBySceneId(sceneId);
-    }
-
-    public boolean recordDropOff(int userId, int variantId, LocalDateTime timestamp) {
-        DropOff dropOff = new DropOff(userId, variantId, timestamp);
-        return dropOffDAO.insertDropOff(dropOff);
-    }
-
-    // Example method to build a personalized film
-    public List<SceneVariant> buildMovieForUser(int movieId, User user) {
-        List<Scene> scenes = getScenesForMovie(movieId);
-        List<SceneVariant> personalizedVariants = new ArrayList<>();
-
-        for (Scene scene : scenes) {
-            List<SceneVariant> variants = getVariantsForScene(scene.getSceneId());
-
-            // Very basic selection logic for now
-            SceneVariant chosen = chooseBestVariant(variants, user.getPreferredPacing());
-            personalizedVariants.add(chosen);
-        }
-
-        return personalizedVariants;
-    }
-
-    private SceneVariant chooseBestVariant(List<SceneVariant> variants, String preferredPacing) {
-        return variants.stream()
-                .filter(v -> v.getPacing().equalsIgnoreCase(preferredPacing))
-                .findFirst()
-                .orElse(variants.get(0)); // fallback
     }
     
     private String hashPassword(String password) {

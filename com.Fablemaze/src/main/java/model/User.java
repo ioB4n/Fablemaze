@@ -10,15 +10,26 @@ public class User {
     private String passwordHash;
     private String dob;
     private String sex;
+    
     private Double openness;
     private Double conscientiousness;
     private Double extraversion;
     private Double agreeableness;
     private Double neuroticism;
-    private String preferredPacing;
-
-    public User(int userId, String username, String passwordHash, String dob, String sex, Double openness, 
-                Double conscientiousness, Double extraversion, Double agreeableness, Double neuroticism, String preferredPacing) {
+    
+    private int totalWatchTime;
+    private Double preferredPacing;
+    private String favouriteGenres;
+    private Double avgSessionLength;
+    private String registrationDate;
+    
+    public User() {
+    }
+    
+    public User(int userId, String username, String passwordHash, String dob, String sex,
+                Double openness, Double conscientiousness, Double extraversion, Double agreeableness,
+                Double neuroticism, int totalWatchTime, Double preferredPacing, String favoriteGenres,
+                Double avgSessionLength, String registrationDate) {
         this.userId = userId;
         this.username = username;
         this.passwordHash = passwordHash;
@@ -29,16 +40,23 @@ public class User {
         this.extraversion = extraversion;
         this.agreeableness = agreeableness;
         this.neuroticism = neuroticism;
+        this.totalWatchTime = totalWatchTime;
         this.preferredPacing = preferredPacing;
+        this.favouriteGenres = favoriteGenres;
+        this.avgSessionLength = avgSessionLength;
+        this.registrationDate = registrationDate;
     }
 
-    public User(String username, String passwordHash, String dob, String sex, Double openness, Double conscientiousness,
-                Double extraversion, Double agreeableness, Double neuroticism, String preferredPacing) {
-        this(0, username, passwordHash, dob, sex, openness, conscientiousness, extraversion, agreeableness, neuroticism, preferredPacing);
+    public User(int userId, String username, String passwordHash, String dob, String sex) {
+        this.userId = userId;
+        this.username = username;
+        this.passwordHash = passwordHash;
+        this.dob = dob;
+        this.sex = sex;
     }
     
     public User(String username, String passwordHash, String dob, String sex) {
-        this(0, username, passwordHash, dob, sex, 0.0, 0.0, 0.0, 0.0, 0.0, "medium");
+        this(0, username, passwordHash, dob, sex);
     }
 
     // Getters and setters (or use Lombok if allowed)
@@ -72,7 +90,19 @@ public class User {
     public Double getNeuroticism() { return neuroticism; }
     public void setNeuroticism(Double neuroticism) { this.neuroticism = neuroticism; }
     
-    public String getPreferredPacing() { return preferredPacing; }
-    public void setPreferredPacing(String preferredPacing) { this.preferredPacing = preferredPacing; }
+    public int getTotalWatchTime() { return totalWatchTime; }
+    public void setTotalWatchTime(int totalWatchTime) { this.totalWatchTime = totalWatchTime;}
+
+    public Double getPreferredPacing() { return preferredPacing; }
+    public void setPreferredPacing(Double preferredPacing) { this.preferredPacing = preferredPacing; }
+
+    public String getFavouriteGenres() { return favouriteGenres; }
+    public void setFavouriteGenres(String favouriteGenres) { this.favouriteGenres = favouriteGenres; }
+
+    public Double getAvgSessionLength() { return avgSessionLength; }
+    public void setAvgSessionLength(Double avgSessionLength) { this.avgSessionLength = avgSessionLength; }
+
+    public String getRegistrationDate() { return registrationDate; }
+    public void setRegistrationDate(String registrationDate) { this.registrationDate = registrationDate; }
 }
 

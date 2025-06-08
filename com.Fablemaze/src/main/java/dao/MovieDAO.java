@@ -14,8 +14,8 @@ public class MovieDAO {
 
     public boolean insertMovie(Movie movie) {
         String sql = """
-            INSERT INTO Movie (title, release_year, duration, scene_count)
-            VALUES (?, ?, ?, ?)
+            INSERT INTO Movie (title, release_year, duration, genres, rating, imdb_rating, scene_count)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
         """;
 
         try (Connection conn = DatabaseManager.connect();
@@ -35,13 +35,19 @@ public class MovieDAO {
                 stmt.setNull(3, Types.INTEGER);
             }
 
-            stmt.setInt(4, movie.getSceneCount());
+            stmt.setString(4, movie.getGenres());
+            stmt.setString(5, movie.getRating());
+            stmt.setDouble(6, movie.GetImdbRating());
+            stmt.setInt(7, movie.getSceneCount());
 
-            int rowsInserted = stmt.executeUpdate();
-            if (rowsInserted > 0) {
-                ResultSet keys = stmt.getGeneratedKeys();
-                if (keys.next()) {
-                    movie.setMovieId(keys.getInt(1));
+            int rows = stmt.executeUpdate();
+            if (rows > 0) {
+                // Retrieve the last inserted ID
+                try (Statement idStmt = conn.createStatement();
+                     ResultSet rs = idStmt.executeQuery("SELECT last_insert_rowid()")) {
+                    if (rs.next()) {
+                        movie.setMovieId(rs.getInt(1));
+                    }
                 }
                 return true;
             }
@@ -67,6 +73,9 @@ public class MovieDAO {
                     rs.getString("title"),
                     rs.getObject("release_year", Integer.class),
                     rs.getObject("duration", Integer.class),
+                    rs.getString("genres"),
+                    rs.getString("rating"),
+                    rs.getDouble("imdb_rating"),
                     rs.getInt("scene_count")
                 );
             }
@@ -91,6 +100,9 @@ public class MovieDAO {
                     rs.getString("title"),
                     rs.getObject("release_year", Integer.class),
                     rs.getObject("duration", Integer.class),
+                    rs.getString("genres"),
+                    rs.getString("rating"),
+                    rs.getDouble("imdb_rating"),
                     rs.getInt("scene_count")
                 ));
             }

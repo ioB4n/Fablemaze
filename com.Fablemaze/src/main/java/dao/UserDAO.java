@@ -14,39 +14,38 @@ public class UserDAO {
 
     public boolean insertUser(User user) {
         String sql = """
-            INSERT INTO User (username, password_hash, dob, sex, openness, conscientiousness, extraversion, agreeableness, neuroticism, preferred_pacing)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO User (username, password_hash, dob, sex)
+            VALUES (?, ?, ?, ?)
         """;
 
         try (Connection conn = DatabaseManager.connect();
-             PreparedStatement stmt = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
 
             stmt.setString(1, user.getUsername());
             stmt.setString(2, user.getPasswordHash());
             stmt.setString(3, user.getDob());
             stmt.setString(4, user.getSex());
-            stmt.setDouble(5, user.getOpenness());
-            stmt.setDouble(6, user.getConscientiousness());
-            stmt.setDouble(7, user.getExtraversion());
-            stmt.setDouble(8, user.getAgreeableness());
-            stmt.setDouble(9, user.getNeuroticism());
-            stmt.setString(10, user.getPreferredPacing());
 
-            int rowsInserted = stmt.executeUpdate();
+            int rows = stmt.executeUpdate();
 
-            if (rowsInserted > 0) {
-                ResultSet keys = stmt.getGeneratedKeys();
-                if (keys.next()) {
-                    user.setUserId(keys.getInt(1));
+            if (rows > 0) {
+                // Retrieve the last inserted ID
+                try (Statement idStmt = conn.createStatement();
+                     ResultSet rs = idStmt.executeQuery("SELECT last_insert_rowid()")) {
+                    if (rs.next()) {
+                        user.setUserId(rs.getInt(1));
+                    }
                 }
                 return true;
             }
+
         } catch (SQLException e) {
             System.err.println("Insert failed: " + e.getMessage());
         }
 
         return false;
     }
+
     
     public boolean setTraits(int userId, Double openness, Double agreeableness, Double extraversion, Double neuroticism, Double conscientiousness) {
         String sql = "UPDATE User SET openness = ?, agreeableness = ?, extraversion = ?, neuroticism = ?, conscientiousness = ? WHERE user_id = ?";
@@ -90,7 +89,11 @@ public class UserDAO {
                     rs.getDouble("extraversion"),
                     rs.getDouble("agreeableness"),
                     rs.getDouble("neuroticism"),
-                    rs.getString("preferred_pacing")
+                    rs.getInt("total_watch_time"),
+                    rs.getDouble("preferred_pacing"),
+                    rs.getString("favourite_genres"),
+                    rs.getDouble("avg_session_length"),
+                    rs.getString("registration_date")
                 );
             }
         } catch (SQLException e) {
@@ -120,7 +123,11 @@ public class UserDAO {
                     rs.getDouble("extraversion"),
                     rs.getDouble("agreeableness"),
                     rs.getDouble("neuroticism"),
-                    rs.getString("preferred_pacing")
+                    rs.getInt("total_watch_time"),
+                    rs.getDouble("preferred_pacing"),
+                    rs.getString("favourite_genres"),
+                    rs.getDouble("avg_session_length"),
+                    rs.getString("registration_date")
                 );
             }
         } catch (SQLException e) {
@@ -150,7 +157,11 @@ public class UserDAO {
                     rs.getDouble("extraversion"),
                     rs.getDouble("agreeableness"),
                     rs.getDouble("neuroticism"),
-                    rs.getString("preferred_pacing")
+                    rs.getInt("total_watch_time"),
+                    rs.getDouble("preferred_pacing"),
+                    rs.getString("favourite_genres"),
+                    rs.getDouble("avg_session_length"),
+                    rs.getString("registration_date")
                 ));
             }
         } catch (SQLException e) {

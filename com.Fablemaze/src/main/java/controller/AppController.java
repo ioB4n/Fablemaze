@@ -147,4 +147,21 @@ public class AppController {
             throw new RuntimeException("SHA-256 algorithm not found.", e);
         }
     }
+    
+    public List<Movie> getMovies() {
+        return movieDAO.getAllMovies();
+    }
+    
+    public List<SceneVariant> getSceneVariantSequence(Movie movie) {
+        List<Scene> scenes = sceneDAO.getScenesByMovieId(movie.getMovieId());
+        Map<Scene, List<SceneVariant>> scenesToVariants = new HashMap<>();
+        List<SceneVariant> sceneVariants = new ArrayList<>();
+        
+        for (Scene scene : scenes) {
+            scenesToVariants.put(scene, variantDAO.getVariantsBySceneId(scene.getSceneId()));
+            sceneVariants.add(scenesToVariants.get(scene).get(0));
+        }
+        
+        return sceneVariants;
+    }
 }

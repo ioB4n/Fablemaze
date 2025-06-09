@@ -4,6 +4,7 @@
 
 package ui;
 
+import javafx.concurrent.Task;
 import util.DatabaseManager;
 import controller.AppController;
 import javafx.application.Application;
@@ -18,6 +19,11 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.HashMap;
+import javafx.scene.image.Image;
+import javafx.scene.image.ImageView;
+import javafx.scene.text.TextAlignment;
+import model.Movie;
+import model.SceneVariant;
 
 public class GUI extends Application {
     
@@ -35,40 +41,64 @@ public class GUI extends Application {
     private VBox authPage;
     private VBox homePage;
     private VBox profileSpecPage;
+    private VBox movieWatchPage;
     
     private AppController controller;
     private String currentUsername;
     
     @Override
-    public void start(Stage stage) {
+public void start(Stage stage) {
+    primaryStage = stage;
+    primaryStage.setTitle("Fablemaze");
+
+    // Show a temporary loading scene
+    Label loadingLabel = new Label("Loading application, please wait...");
+    loadingLabel.setStyle("-fx-font-size: 18px; -fx-text-fill: white;");
+    StackPane loadingPane = new StackPane(loadingLabel);
+    loadingPane.setStyle("-fx-background-color: linear-gradient(#141e30, #243b55);");
+    Scene loadingScene = new Scene(loadingPane, 1050, 825);
+    primaryStage.setScene(loadingScene);
+    primaryStage.show();
+
+    // Initialize DB in background thread
+    Task<Void> initTask = new Task<>() {
+        @Override
+        protected Void call() throws Exception {
+            DatabaseManager.initSchema();
+            return null;
+        }
+    };
+
+    initTask.setOnSucceeded(e -> {
+        // Now safe to continue with GUI init
         controller = new AppController();
-        DatabaseManager.initSchema();
         
-        primaryStage = stage;
-        primaryStage.setTitle("Fablemaze");
-        
-        // Create main container that will hold all pages
         mainContainer = new StackPane();
         mainContainer.setStyle(
             "-fx-background-color: linear-gradient(#667eea 0%, #764ba2 100%);"
         );
-        
-        // Create all pages
+
         createAuthPage();
         createHomePage();
         createProfileSpecPage();
-        
-        // Add all pages to main container (only one will be visible at a time)
-        mainContainer.getChildren().addAll(authPage, homePage, profileSpecPage);
-        
-        // Initially show only auth page
+        createMovieWatchPage(new Movie());
+
+        mainContainer.getChildren().addAll(authPage, homePage, profileSpecPage, movieWatchPage);
         showAuthPage();
-        
-        Scene scene = new Scene(mainContainer, 1050, 825);
-        primaryStage.setScene(scene);
-        primaryStage.setResizable(false);
-        primaryStage.show();
-    }
+
+        Scene mainScene = new Scene(mainContainer, 1050, 825);
+        primaryStage.setScene(mainScene);
+    });
+
+    initTask.setOnFailed(e -> {
+        Throwable ex = initTask.getException();
+        loadingLabel.setText("Failed to initialize database:\n" + ex.getMessage());
+        ex.printStackTrace();
+    });
+
+    new Thread(initTask).start();
+}
+
     
     private void createAuthPage() {
         // Left side - Decorative panel
@@ -98,22 +128,22 @@ public class GUI extends Application {
         homePage = new VBox(30);
         homePage.setAlignment(Pos.CENTER);
         homePage.setPadding(new Insets(40));
-        
+
         // Header
         HBox header = new HBox();
         header.setAlignment(Pos.CENTER_LEFT);
         header.setPadding(new Insets(0, 0, 20, 0));
-        
+
         Label welcomeLabel = new Label("Welcome to Fablemaze");
         welcomeLabel.setStyle(
             "-fx-font-size: 36px;" +
             "-fx-text-fill: white;" +
             "-fx-font-weight: 300;"
         );
-        
+
         Region spacer = new Region();
         HBox.setHgrow(spacer, Priority.ALWAYS);
-        
+
         Button logoutButton = new Button("Logout");
         logoutButton.setStyle(
             "-fx-background-color: rgba(255,255,255,0.2);" +
@@ -126,108 +156,442 @@ public class GUI extends Application {
             "-fx-border-color: rgba(255,255,255,0.3);" +
             "-fx-border-radius: 20;"
         );
-        
+
         logoutButton.setOnAction(e -> {
             currentUsername = null;
             showAuthPage();
         });
-        
+
         header.getChildren().addAll(welcomeLabel, spacer, logoutButton);
-        
+
         // Main content card
         VBox contentCard = new VBox(30);
-        contentCard.setMaxWidth(800);
-        contentCard.setPadding(new Insets(60));
+        contentCard.setMaxWidth(1000);
+        contentCard.setPadding(new Insets(40));
         contentCard.setAlignment(Pos.CENTER);
         contentCard.setStyle(
             "-fx-background-color: white;" +
             "-fx-background-radius: 20;" +
             "-fx-effect: dropshadow(gaussian, rgba(0,0,0,0.2), 20, 0, 0, 5);"
         );
-        
-        Label titleLabel = new Label("Your Personalized Film Experience");
+
+        Label titleLabel = new Label("Available Movies");
         titleLabel.setStyle(
             "-fx-font-size: 28px;" +
             "-fx-text-fill: #2c3e50;" +
             "-fx-font-weight: 600;"
         );
-        
-        Label descLabel = new Label("Discover movies tailored to your preferences and enjoy a customized viewing experience.");
-        descLabel.setWrapText(true);
-        descLabel.setMaxWidth(600);
-        descLabel.setStyle(
-            "-fx-font-size: 16px;" +
-            "-fx-text-fill: #7f8c8d;" +
-            "-fx-text-alignment: center;" +
-            "-fx-line-spacing: 5px;"
+
+        // Get movies from controller
+        List<Movie> movies = controller.getMovies();
+
+        // Create scrollable movie grid
+        ScrollPane scrollPane = new ScrollPane();
+        scrollPane.setFitToWidth(true);
+        scrollPane.setStyle(
+            "-fx-background: white;" +
+            "-fx-background-color: white;" +
+            "-fx-border-color: transparent;"
         );
-        
-        // Feature grid
-        GridPane featuresGrid = new GridPane();
-        featuresGrid.setHgap(30);
-        featuresGrid.setVgap(30);
-        featuresGrid.setAlignment(Pos.CENTER);
-        
-        String[][] features = {
-            {"🎬", "Movie Recommendations", "Get personalized movie suggestions based on your taste"},
-            {"⭐", "Rating System", "Rate movies and build your personal film library"},
-            {"🔍", "Advanced Search", "Find exactly what you're looking for with smart filters"},
-            {"👥", "Social Features", "Share reviews and connect with other film enthusiasts"}
-        };
-        
-        for (int i = 0; i < features.length; i++) {
-            VBox featureBox = new VBox(10);
-            featureBox.setAlignment(Pos.CENTER);
-            featureBox.setPadding(new Insets(20));
-            featureBox.setMaxWidth(180);
-            featureBox.setStyle(
-                "-fx-background-color: #f8f9fa;" +
-                "-fx-background-radius: 15;" +
-                "-fx-border-color: #e9ecef;" +
-                "-fx-border-radius: 15;"
+
+        GridPane moviesGrid = new GridPane();
+        moviesGrid.setHgap(20);
+        moviesGrid.setVgap(20);
+        moviesGrid.setAlignment(Pos.CENTER);
+        moviesGrid.setPadding(new Insets(20));
+
+        // Display movies in a grid (3 columns)
+        int col = 0;
+        int row = 0;
+
+        for (Movie movie : movies) {
+            VBox movieCard = createMovieCard(movie);
+            moviesGrid.add(movieCard, col, row);
+
+            col++;
+            if (col >= 3) {
+                col = 0;
+                row++;
+            }
+        }
+
+        scrollPane.setContent(moviesGrid);
+        scrollPane.setPrefHeight(400);
+
+        contentCard.getChildren().addAll(titleLabel, scrollPane);
+        homePage.getChildren().addAll(header, contentCard);
+    }
+
+    private VBox createMovieCard(Movie movie) {
+        VBox movieCard = new VBox(12);
+        movieCard.setAlignment(Pos.TOP_CENTER);
+        movieCard.setPadding(new Insets(20));
+        movieCard.setMaxWidth(280);
+        movieCard.setPrefWidth(280);
+        movieCard.setMinHeight(220);
+        movieCard.setPrefHeight(220);
+        movieCard.setStyle(
+            "-fx-background-color: linear-gradient(to bottom, #ffffff, #f8f9fa);" +
+            "-fx-background-radius: 16;" +
+            "-fx-border-color: #e1e5e9;" +
+            "-fx-border-width: 1;" +
+            "-fx-border-radius: 16;" +
+            "-fx-effect: dropshadow(gaussian, rgba(0,0,0,0.12), 15, 0.3, 0, 3);"
+        );
+
+        // Add subtle hover effect to the entire card
+        movieCard.setOnMouseEntered(e -> {
+            movieCard.setStyle(
+                "-fx-background-color: linear-gradient(to bottom, #ffffff, #f8f9fa);" +
+                "-fx-background-radius: 16;" +
+                "-fx-border-color: #c6cbd1;" +
+                "-fx-border-width: 1;" +
+                "-fx-border-radius: 16;" +
+                "-fx-effect: dropshadow(gaussian, rgba(0,0,0,0.18), 20, 0.4, 0, 5);" +
+                "-fx-scale-x: 1.02;" +
+                "-fx-scale-y: 1.02;"
             );
-            
-            Label iconLabel = new Label(features[i][0]);
-            iconLabel.setStyle("-fx-font-size: 32px;");
-            
-            Label featureTitleLabel = new Label(features[i][1]);
-            featureTitleLabel.setStyle(
-                "-fx-font-size: 14px;" +
-                "-fx-text-fill: #2c3e50;" +
-                "-fx-font-weight: 600;"
+        });
+
+        movieCard.setOnMouseExited(e -> {
+            movieCard.setStyle(
+                "-fx-background-color: linear-gradient(to bottom, #ffffff, #f8f9fa);" +
+                "-fx-background-radius: 16;" +
+                "-fx-border-color: #e1e5e9;" +
+                "-fx-border-width: 1;" +
+                "-fx-border-radius: 16;" +
+                "-fx-effect: dropshadow(gaussian, rgba(0,0,0,0.12), 15, 0.3, 0, 3);" +
+                "-fx-scale-x: 1.0;" +
+                "-fx-scale-y: 1.0;"
             );
-            
-            Label featureDescLabel = new Label(features[i][2]);
-            featureDescLabel.setWrapText(true);
-            featureDescLabel.setStyle(
-                "-fx-font-size: 12px;" +
-                "-fx-text-fill: #7f8c8d;" +
+        });
+
+        // Movie title with better text handling
+        Label titleLabel = new Label(movie.getTitle());
+        titleLabel.setWrapText(true);
+        titleLabel.setMaxWidth(240);
+        titleLabel.setMaxHeight(50);
+        titleLabel.setAlignment(Pos.CENTER);
+        titleLabel.setTextAlignment(TextAlignment.CENTER);
+        titleLabel.setStyle(
+            "-fx-font-size: 17px;" +
+            "-fx-text-fill: #1a202c;" +
+            "-fx-font-weight: 700;" +
+            "-fx-text-alignment: center;" +
+            "-fx-padding: 0 0 8 0;"
+        );
+
+        // Content area for movie details
+        VBox contentArea = new VBox(8);
+        contentArea.setAlignment(Pos.CENTER);
+        contentArea.setFillWidth(true);
+        VBox.setVgrow(contentArea, Priority.ALWAYS);
+
+        // Movie details with improved styling
+        VBox detailsBox = new VBox(6);
+        detailsBox.setAlignment(Pos.CENTER);
+        detailsBox.setMaxWidth(240);
+
+        if (movie.getReleaseYear() != null) {
+            HBox yearBox = new HBox(8);
+            yearBox.setAlignment(Pos.CENTER);
+
+            Label yearIcon = new Label("📅");
+            yearIcon.setStyle("-fx-font-size: 14px;");
+
+            Label yearLabel = new Label(movie.getReleaseYear().toString());
+            yearLabel.setStyle(
+                "-fx-font-size: 13px;" +
+                "-fx-text-fill: #4a5568;" +
+                "-fx-font-weight: 500;"
+            );
+
+            yearBox.getChildren().addAll(yearIcon, yearLabel);
+            detailsBox.getChildren().add(yearBox);
+        }
+
+        if (movie.getGenres() != null && !movie.getGenres().isEmpty()) {
+            HBox genreBox = new HBox(8);
+            genreBox.setAlignment(Pos.CENTER);
+
+            Label genreIcon = new Label("🎭");
+            genreIcon.setStyle("-fx-font-size: 14px;");
+
+            Label genreLabel = new Label(truncateText(movie.getGenres(), 20));
+            genreLabel.setWrapText(true);
+            genreLabel.setMaxWidth(200);
+            genreLabel.setTextAlignment(TextAlignment.CENTER);
+            genreLabel.setStyle(
+                "-fx-font-size: 13px;" +
+                "-fx-text-fill: #4a5568;" +
+                "-fx-font-weight: 500;" +
                 "-fx-text-alignment: center;"
             );
-            
-            featureBox.getChildren().addAll(iconLabel, featureTitleLabel, featureDescLabel);
-            
-            int col = i % 2;
-            int row = i / 2;
-            featuresGrid.add(featureBox, col, row);
+
+            genreBox.getChildren().addAll(genreIcon, genreLabel);
+            detailsBox.getChildren().add(genreBox);
+        }
+
+        if (movie.getDuration() != null) {
+            HBox durationBox = new HBox(8);
+            durationBox.setAlignment(Pos.CENTER);
+
+            Label durationLabel = new Label("⏱ " + movie.getDuration().toString() + " min");
+            durationLabel.setStyle(
+                "-fx-font-size: 13px;" +
+                "-fx-text-fill: #4a5568;" +
+                "-fx-font-weight: 500;"
+            );
+
+            durationBox.getChildren().add(durationLabel);
+            detailsBox.getChildren().add(durationBox);
+        }
+
+        contentArea.getChildren().add(detailsBox);
+
+        // Spacer to push button to bottom
+        Region spacer = new Region();
+        VBox.setVgrow(spacer, Priority.ALWAYS);
+        contentArea.getChildren().add(spacer);
+
+        // Enhanced watch button
+        Button watchButton = new Button("▶ Watch Now");
+        watchButton.setMaxWidth(Double.MAX_VALUE);
+        watchButton.setStyle(
+            "-fx-background-color: linear-gradient(#667eea 0%, #764ba2 100%);" +
+            "-fx-text-fill: white;" +
+            "-fx-font-size: 14px;" +
+            "-fx-font-weight: 600;" +
+            "-fx-background-radius: 12;" +
+            "-fx-padding: 12 24;" +
+            "-fx-cursor: hand;" +
+            "-fx-border-color: transparent;" +
+            "-fx-effect: dropshadow(gaussian, rgba(102,126,234,0.3), 8, 0.2, 0, 2);"
+        );
+
+        // Enhanced button hover effects
+        watchButton.setOnMouseEntered(e -> {
+            watchButton.setStyle(
+                "-fx-background-color: linear-gradient(#5a6fd8 0%, #6a4190 100%);" +
+                "-fx-text-fill: white;" +
+                "-fx-font-size: 14px;" +
+                "-fx-font-weight: 600;" +
+                "-fx-background-radius: 12;" +
+                "-fx-padding: 12 24;" +
+                "-fx-cursor: hand;" +
+                "-fx-border-color: transparent;" +
+                "-fx-effect: dropshadow(gaussian, rgba(102,126,234,0.4), 12, 0.3, 0, 4);" +
+                "-fx-scale-x: 1.03;" +
+                "-fx-scale-y: 1.03;"
+            );
+        });
+
+        watchButton.setOnMouseExited(e -> {
+            watchButton.setStyle(
+                "-fx-background-color: linear-gradient(#667eea 0%, #764ba2 100%);" +
+                "-fx-text-fill: white;" +
+                "-fx-font-size: 14px;" +
+                "-fx-font-weight: 600;" +
+                "-fx-background-radius: 12;" +
+                "-fx-padding: 12 24;" +
+                "-fx-cursor: hand;" +
+                "-fx-border-color: transparent;" +
+                "-fx-effect: dropshadow(gaussian, rgba(102,126,234,0.3), 8, 0.2, 0, 2);" +
+                "-fx-scale-x: 1.0;" +
+                "-fx-scale-y: 1.0;"
+            );
+        });
+
+        // Watch button action
+        watchButton.setOnAction(e -> {
+            createMovieWatchPage(movie);
+            showMovieWatchPage();
+        });
+
+        movieCard.getChildren().addAll(titleLabel, contentArea, watchButton);
+        return movieCard;
+    }
+
+    // Helper method to truncate long text
+    private String truncateText(String text, int maxLength) {
+        if (text == null) return "";
+        if (text.length() <= maxLength) return text;
+        return text.substring(0, maxLength - 3) + "...";
+    }
+    
+    private void createMovieWatchPage(Movie movie) {
+        if (movieWatchPage != null) {
+            mainContainer.getChildren().remove(movieWatchPage);
         }
         
-        Button exploreButton = new Button("Start Exploring");
-        exploreButton.setStyle(
-            "-fx-background-color: linear-gradient(#667eea, #764ba2);" +
+        movieWatchPage = new VBox(30);
+        movieWatchPage.setAlignment(Pos.CENTER);
+        movieWatchPage.setPadding(new Insets(30));
+
+        // Header with back button and movie title
+        HBox header = new HBox();
+        header.setAlignment(Pos.CENTER_LEFT);
+        header.setPadding(new Insets(0, 0, 30, 0));
+
+        Button backButton = new Button("← Back to Movies");
+        backButton.setStyle(
+            "-fx-background-color: rgba(255,255,255,0.2);" +
             "-fx-text-fill: white;" +
-            "-fx-font-size: 16px;" +
-            "-fx-font-weight: 600;" +
-            "-fx-background-radius: 25;" +
-            "-fx-padding: 15 40;" +
+            "-fx-font-size: 14px;" +
+            "-fx-font-weight: 500;" +
+            "-fx-background-radius: 20;" +
+            "-fx-padding: 10 20;" +
             "-fx-cursor: hand;" +
+            "-fx-border-color: rgba(255,255,255,0.3);" +
+            "-fx-border-radius: 20;"
+        );
+
+        backButton.setOnAction(e -> showHomePage());
+
+        Region spacer = new Region();
+        HBox.setHgrow(spacer, Priority.ALWAYS);
+
+        Label movieTitleLabel = new Label(movie.getTitle());
+        movieTitleLabel.setStyle(
+            "-fx-font-size: 32px;" +
+            "-fx-text-fill: white;" +
+            "-fx-font-weight: 400;"
+        );
+
+        header.getChildren().addAll(backButton, spacer, movieTitleLabel);
+
+        // Main content card
+        VBox contentCard = new VBox(25);
+        contentCard.setMaxWidth(1200);
+        contentCard.setPadding(new Insets(40));
+        contentCard.setAlignment(Pos.CENTER);
+        contentCard.setStyle(
+            "-fx-background-color: white;" +
+            "-fx-background-radius: 20;" +
+            "-fx-effect: dropshadow(gaussian, rgba(0,0,0,0.15), 20, 0, 0, 5);"
+        );
+        
+        List<SceneVariant> segments = controller.getSceneVariantSequence(movie);
+
+        // Container for the 5 segment images
+        HBox segmentsContainer = new HBox(20);
+        segmentsContainer.setAlignment(Pos.CENTER);
+        segmentsContainer.setPadding(new Insets(20, 0, 20, 0));
+
+        // Create 5 segment cards
+        for (SceneVariant variant : segments) {
+            VBox segmentCard = createSegmentCard(variant);
+            segmentsContainer.getChildren().add(segmentCard);
+        }
+
+        // Optional: Add scroll pane if segments might overflow
+        ScrollPane segmentsScrollPane = new ScrollPane(segmentsContainer);
+        segmentsScrollPane.setFitToHeight(true);
+        segmentsScrollPane.setHbarPolicy(ScrollPane.ScrollBarPolicy.AS_NEEDED);
+        segmentsScrollPane.setVbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
+        segmentsScrollPane.setStyle(
+            "-fx-background: transparent;" +
+            "-fx-background-color: transparent;" +
             "-fx-border-color: transparent;"
         );
         
-        addButtonHoverEffect(exploreButton);
-        
-        contentCard.getChildren().addAll(titleLabel, descLabel, featuresGrid, exploreButton);
-        homePage.getChildren().addAll(header, contentCard);
+        contentCard.getChildren().addAll(segmentsScrollPane);
+        movieWatchPage.getChildren().addAll(header, contentCard);
+    }
+    
+    private void showMovieWatchPage() {
+        authPage.setVisible(false);
+        homePage.setVisible(false);
+        profileSpecPage.setVisible(false);
+        movieWatchPage.setVisible(true);
+        mainContainer.getChildren().add(movieWatchPage);
+        primaryStage.setTitle("Fablemaze - Watch Movie");
+    }
+    
+    private VBox createSegmentCard(SceneVariant variant) {
+        VBox segmentCard = new VBox(12);
+        segmentCard.setAlignment(Pos.CENTER);
+        segmentCard.setPadding(new Insets(15));
+        segmentCard.setMaxWidth(200);
+        segmentCard.setPrefWidth(200);
+        segmentCard.setStyle(
+            "-fx-background-color: #f8f9fa;" +
+            "-fx-background-radius: 15;" +
+            "-fx-border-color: #e9ecef;" +
+            "-fx-border-width: 2;" +
+            "-fx-border-radius: 15;" +
+            "-fx-effect: dropshadow(gaussian, rgba(0,0,0,0.1), 10, 0, 0, 2);" +
+            "-fx-cursor: hand;"
+        );
+
+        // Add hover effect to segment card
+        segmentCard.setOnMouseEntered(e -> {
+            segmentCard.setStyle(
+                "-fx-background-color: #e8f4fd;" +
+                "-fx-background-radius: 15;" +
+                "-fx-border-color: #667eea;" +
+                "-fx-border-width: 2;" +
+                "-fx-border-radius: 15;" +
+                "-fx-effect: dropshadow(gaussian, rgba(102,126,234,0.3), 15, 0.3, 0, 4);" +
+                "-fx-cursor: hand;" +
+                "-fx-scale-x: 1.03;" +
+                "-fx-scale-y: 1.03;"
+            );
+        });
+
+        segmentCard.setOnMouseExited(e -> {
+            segmentCard.setStyle(
+                "-fx-background-color: #f8f9fa;" +
+                "-fx-background-radius: 15;" +
+                "-fx-border-color: #e9ecef;" +
+                "-fx-border-width: 2;" +
+                "-fx-border-radius: 15;" +
+                "-fx-effect: dropshadow(gaussian, rgba(0,0,0,0.1), 10, 0, 0, 2);" +
+                "-fx-cursor: hand;" +
+                "-fx-scale-x: 1.0;" +
+                "-fx-scale-y: 1.0;"
+            );
+        });
+
+        ImageView segmentImage = new ImageView();
+        segmentImage.setFitWidth(160);
+        segmentImage.setFitHeight(90);
+        segmentImage.setPreserveRatio(true);
+        segmentImage.setSmooth(true);
+
+        // Load image from file or URL
+        try {
+            Image image = new Image(getClass().getResource("/images/" + variant.getFilePath()).toExternalForm());
+            segmentImage.setImage(image);
+        } catch (Exception ex) {
+            // Fallback to placeholder if image not found
+            segmentImage.setImage(null);
+        }
+
+        // Overlay play icon on image
+        StackPane imageContainer = new StackPane();
+        imageContainer.getChildren().add(segmentImage);
+
+        Label playIcon = new Label("▶");
+        playIcon.setStyle(
+            "-fx-font-size: 24px;" +
+            "-fx-text-fill: rgba(255,255,255,0.9);" +
+            "-fx-background-color: rgba(0,0,0,0.5);" +
+            "-fx-background-radius: 50%;" +
+            "-fx-padding: 8;"
+        );
+        imageContainer.getChildren().add(playIcon);
+
+        // Segment info
+        Label segmentLabel = new Label(variant.getVariantName() + "  ⏱" + variant.getDuration() + " min");
+        segmentLabel.setStyle(
+            "-fx-font-size: 14px;" +
+            "-fx-text-fill: #2c3e50;" +
+            "-fx-font-weight: 600;"
+        );
+
+        segmentCard.getChildren().addAll(imageContainer, segmentLabel);
+        return segmentCard;
     }
     
     private void createProfileSpecPage() {
@@ -385,6 +749,7 @@ public class GUI extends Application {
         authPage.setVisible(true);
         homePage.setVisible(false);
         profileSpecPage.setVisible(false);
+        movieWatchPage.setVisible(false);
         primaryStage.setTitle("Account Portal");
     }
     
@@ -392,6 +757,7 @@ public class GUI extends Application {
         authPage.setVisible(false);
         homePage.setVisible(true);
         profileSpecPage.setVisible(false);
+        movieWatchPage.setVisible(false);
         primaryStage.setTitle("Fablemaze - Home");
     }
     
@@ -399,6 +765,7 @@ public class GUI extends Application {
         authPage.setVisible(false);
         homePage.setVisible(false);
         profileSpecPage.setVisible(true);
+        movieWatchPage.setVisible(false);
         primaryStage.setTitle("Fablemaze - Complete Profile");
     }
     

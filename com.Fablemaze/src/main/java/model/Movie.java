@@ -14,6 +14,17 @@ public class Movie {
     private Double imdbRating;
     private int sceneCount;
 
+    public Movie() {
+        this.movieId = 0;
+        this.title = "Movie";
+        this.releaseYear = 2025;
+        this.duration = 120;
+        this.genres = "Genre";
+        this.rating = "PG";
+        this.imdbRating = 5.0;
+        this.sceneCount = 5;
+    }
+
     public Movie(int movieId, String title, Integer releaseYear, Integer duration, String genres, 
                  String rating, Double imdbRating, int sceneCount) {
         this.movieId = movieId;
